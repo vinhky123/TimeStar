@@ -20,7 +20,7 @@ class STAR(nn.Module):
     def forward(self, input, *args, **kwargs):
         batch_size, channels, d_series = input.shape
 
-        combined_mean = self.dropout(self.gen2(self.gen1(input)))
+        combined_mean = self.dropout(self.gen2(input))
 
         # stochastic pooling
         if self.training:
@@ -248,7 +248,7 @@ class Model(nn.Module):
         en_embed, n_vars = self.en_embedding(x_enc.permute(0, 2, 1))
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
-        enc_out = self.encoder(en_embed, ex_embed, x_enc)
+        enc_out = self.encoder(en_embed, ex_embed)
         enc_out = torch.reshape(
             enc_out, (-1, n_vars, enc_out.shape[-2], enc_out.shape[-1])
         )
