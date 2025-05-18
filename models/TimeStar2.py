@@ -94,17 +94,10 @@ class Encoder(nn.Module):
         self.norm = norm_layer
         self.projection = projection
 
-    def forward(
-        self, x, cross, x_raw, x_mask=None, cross_mask=None, tau=None, delta=None
-    ):
+    def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
         for layer in self.layers:
             x = layer(
-                x,
-                cross,
-                x_mask=x_mask,
-                cross_mask=cross_mask,
-                tau=tau,
-                delta=delta,
+                x, cross, x_mask=x_mask, cross_mask=cross_mask, tau=tau, delta=delta
             )
 
         if self.norm is not None:
@@ -146,7 +139,7 @@ class EncoderLayer(nn.Module):
         )
         x = self.norm1(x)
 
-        cross = self.star(cross)
+        x = self.star(x)
 
         x_glb_ori = x[:, -1, :].unsqueeze(1)
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
@@ -232,6 +225,44 @@ class Model(nn.Module):
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
         )
+
+    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+        if self.use_norm:
+            # Normalization from Non-stationary Transformer
+            means = x_enc.mean(1, keepdim=True).detach()
+            x_enc = x_enc - means
+            stdev = torch.sqrt(
+                torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5
+            )
+            x_enc /= stdev
+
+        _, _, N = x_enc.shape
+
+        en_embed, n_vars = self.en_embedding(
+            x_enc[:, :, -1].unsqueeze(-1).permute(0, 2, 1)
+        )
+        ex_embed = self.ex_embedding(x_enc[:, :, :-1], x_mark_enc)
+
+        enc_out = self.encoder(en_embed, ex_embed)
+        enc_out = torch.reshape(
+            enc_out, (-1, n_vars, enc_out.shape[-2], enc_out.shape[-1])
+        )
+        # z: [bs x nvars x d_model x patch_num]
+        enc_out = enc_out.permute(0, 1, 3, 2)
+
+        dec_out = self.head(enc_out)  # z: [bs x nvars x target_window]
+        dec_out = dec_out.permute(0, 2, 1)
+
+        if self.use_norm:
+            # De-Normalization from Non-stationary Transformer
+            dec_out = dec_out * (
+                stdev[:, 0, -1:].unsqueeze(1).repeat(1, self.pred_len, 1)
+            )
+            dec_out = dec_out + (
+                means[:, 0, -1:].unsqueeze(1).repeat(1, self.pred_len, 1)
+            )
+
+        return dec_out
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         if self.use_norm:
