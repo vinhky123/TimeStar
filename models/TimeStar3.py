@@ -41,14 +41,13 @@ class STAR_patch(nn.Module):
                 combined_mean * weight, dim=1, keepdim=True
             ).repeat(1, channels, 1)
 
-        input_core = combined_mean[:, : channels - 4, :]
         input_core = input_core + en_input
 
         # mlp fusion
         combined_mean_cat = torch.cat([ex_input, input_core], -1)
         combined_mean_cat = self.dropout(F.gelu(self.gen3(combined_mean_cat)))
         combined_mean_cat = self.gen4(combined_mean_cat)
-        output = combined_mean_cat
+        output = combined_mean_cat[:, channels - 4 :, :]
 
         return output, None
 
