@@ -206,7 +206,7 @@ class Model(nn.Module):
                         configs.d_model,
                         configs.n_heads,
                     ),
-                    STAR_patch(configs.d_model, configs.d_core),
+                    STAR(configs.d_model, configs.d_core),
                     AttentionLayer(
                         FullAttention(
                             False,
