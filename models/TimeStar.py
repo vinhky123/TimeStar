@@ -7,7 +7,7 @@ import numpy as np
 
 
 class STAR_patch(nn.Module):
-    def __init__(self, d_series, d_core, channels):
+    def __init__(self, d_series, d_core):
         super(STAR_patch, self).__init__()
         """
         STar Aggregate-Redistribute Module
