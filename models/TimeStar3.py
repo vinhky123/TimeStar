@@ -235,7 +235,7 @@ class Model(nn.Module):
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed)
-        dec_out = self.decoder(enc_out).reshape(0, 2, 1)
+        dec_out = self.decoder(enc_out).permute(0, 2, 1)
 
         if self.use_norm:
             # De-Normalization from Non-stationary Transformer
