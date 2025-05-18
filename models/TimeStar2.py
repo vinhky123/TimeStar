@@ -139,7 +139,7 @@ class EncoderLayer(nn.Module):
         )
         x = self.norm1(x)
 
-        x = self.star(x)
+        cross = self.star(cross)
 
         x_glb_ori = x[:, -1, :].unsqueeze(1)
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
