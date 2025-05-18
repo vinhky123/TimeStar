@@ -17,10 +17,14 @@ class STAR_patch(nn.Module):
         self.gen2 = nn.Linear(d_series, d_core)
         self.gen3 = nn.Linear(d_series + d_core, d_series)
         self.gen4 = nn.Linear(d_series, d_series)
+
+        self.glb_pj = nn.Linear(d_series, d_core)
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, en_input, ex_input, *args, **kwargs):
         batch_size, channels, d_series = ex_input.shape
+
+        en_input = self.glb_pj(en_input)
 
         # set FFN
         combined_mean = self.dropout(F.gelu(self.gen1(ex_input)))
