@@ -20,7 +20,7 @@ class STAR_patch(nn.Module):
         # self.embedding = nn.Parameter(torch.randn(1, channels * 2 + 4, d_core))
         self.dropout = nn.Dropout(0.1)
 
-        self.pooling = nn.AdaptiveAvgPool1d(output_size=channels)
+        self.pooling = nn.Linear(channels * 2 + 4, channels)
 
     def forward(self, input, ex_input, *args, **kwargs):
         batch_size, en_channels, d_series = input.shape
