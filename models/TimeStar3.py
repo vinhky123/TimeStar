@@ -52,8 +52,6 @@ class STAR_patch(nn.Module):
         combined_mean_cat = self.gen4(combined_mean_cat)
         output = combined_mean_cat
 
-        print(output.shape)
-
         return output, None
 
 
@@ -237,7 +235,10 @@ class Model(nn.Module):
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed)
+        print(enc_out.shape)
         dec_out = self.decoder(enc_out)
+
+        print(dec_out.shape)
 
         if self.use_norm:
             # De-Normalization from Non-stationary Transformer
