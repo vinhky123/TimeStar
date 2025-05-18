@@ -16,7 +16,6 @@ class STAR_patch(nn.Module):
         self.gen1 = nn.Linear(d_series, d_series)
         self.gen2 = nn.Linear(d_series, d_core)
         self.gen3 = nn.Linear(d_series + d_core, d_series)
-        self.gen4 = nn.Linear(d_series, d_series)
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, input, ex_input, *args, **kwargs):
@@ -49,25 +48,9 @@ class STAR_patch(nn.Module):
         # mlp fusion
         combined_mean_cat = torch.cat([input, input_core], -1)
         combined_mean_cat = self.dropout(F.gelu(self.gen3(combined_mean_cat)))
-        combined_mean_cat = self.gen4(combined_mean_cat)
         output = combined_mean_cat
 
         return output, None
-
-
-class FlattenHead(nn.Module):
-    def __init__(self, n_vars, nf, target_window, head_dropout=0):
-        super().__init__()
-        self.n_vars = n_vars
-        self.flatten = nn.Flatten(start_dim=-2)
-        self.linear = nn.Linear(nf, target_window)
-        self.dropout = nn.Dropout(head_dropout)
-
-    def forward(self, x):  # x: [bs x nvars x d_model x patch_num]
-        x = self.flatten(x)
-        x = self.linear(x)
-        x = self.dropout(x)
-        return x
 
 
 class EnEmbedding(nn.Module):
@@ -104,17 +87,10 @@ class Encoder(nn.Module):
         self.norm = norm_layer
         self.projection = projection
 
-    def forward(
-        self, x, cross, x_raw, x_mask=None, cross_mask=None, tau=None, delta=None
-    ):
+    def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
         for layer in self.layers:
             x = layer(
-                x,
-                cross,
-                x_mask=x_mask,
-                cross_mask=cross_mask,
-                tau=tau,
-                delta=delta,
+                x, cross, x_mask=x_mask, cross_mask=cross_mask, tau=tau, delta=delta
             )
 
         if self.norm is not None:
@@ -129,7 +105,7 @@ class EncoderLayer(nn.Module):
     def __init__(
         self,
         self_attention,
-        cross_attention,
+        star,
         d_model,
         d_ff=None,
         dropout=0.1,
@@ -138,7 +114,7 @@ class EncoderLayer(nn.Module):
         super(EncoderLayer, self).__init__()
         d_ff = d_ff or 4 * d_model
         self.self_attention = self_attention
-        self.cross_attention = cross_attention
+        self.cross_attention = star
         self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
         self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
         self.norm1 = nn.LayerNorm(d_model)
@@ -149,7 +125,6 @@ class EncoderLayer(nn.Module):
 
     def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
         B, L, D = cross.shape
-        # x shape [b * n_vars, patch_num + 1, d_model]
         x = x + self.dropout(
             self.self_attention(x, x, x, attn_mask=x_mask, tau=tau, delta=None)[0]
         )
@@ -157,20 +132,15 @@ class EncoderLayer(nn.Module):
 
         x_glb_ori = x[:, -1, :].unsqueeze(1)
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
+        output = self.cross_attention(x_glb, cross)[0]
 
-        x_glb_attn = self.dropout(self.cross_attention(x_glb, cross)[0])
-        x_glb_attn = torch.reshape(
-            x_glb_attn, (x_glb_attn.shape[0] * x_glb_attn.shape[1], x_glb_attn.shape[2])
-        ).unsqueeze(1)
-        x_glb = x_glb_ori + x_glb_attn
-        x_glb = self.norm2(x_glb)
-
-        y = x = torch.cat([x[:, :-1, :], x_glb], dim=1)
+        output = self.norm2(output + x_glb)
+        y = output
 
         y = self.dropout(self.activation(self.conv1(y.transpose(-1, 1))))
         y = self.dropout(self.conv2(y).transpose(-1, 1))
 
-        return self.norm3(x + y)
+        return y
 
 
 class Model(nn.Module):
@@ -240,8 +210,7 @@ class Model(nn.Module):
         en_embed, n_vars = self.en_embedding(x_enc.permute(0, 2, 1))
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
-        enc_out = self.encoder(en_embed, ex_embed, x_enc)
-
+        enc_out = self.encoder(en_embed, ex_embed)
         dec_out = self.decoder(enc_out)
 
         if self.use_norm:
@@ -262,9 +231,6 @@ class Model(nn.Module):
         ):
             if self.features == "M":
                 dec_out = self.forecast_multi(x_enc, x_mark_enc, x_dec, x_mark_dec)
-                return dec_out[:, -self.pred_len :, :]  # [B, L, D]
-            else:
-                dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
                 return dec_out[:, -self.pred_len :, :]  # [B, L, D]
         else:
             return None
