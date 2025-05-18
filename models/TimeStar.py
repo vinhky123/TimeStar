@@ -17,7 +17,6 @@ class STAR_patch(nn.Module):
         self.gen2 = nn.Linear(d_series, d_core)
         self.gen3 = nn.Linear(d_series + d_core, d_series)
         self.gen4 = nn.Linear(d_series, d_series)
-        self.embedding = nn.Parameter(torch.randn(1, channels * 2 + 4, d_core))
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, input, ex_input, *args, **kwargs):
@@ -25,7 +24,6 @@ class STAR_patch(nn.Module):
         channels = ex_input.shape[1] + input.shape[1]
 
         concated_input = torch.cat([input, ex_input], dim=1)
-        embedding = self.embedding.repeat((batch_size, 1, 1))
 
         # set FFN
         combined_mean = self.dropout(F.gelu(self.gen1(concated_input)))
@@ -40,13 +38,11 @@ class STAR_patch(nn.Module):
             indices = indices.view(batch_size, -1, 1).permute(0, 2, 1)
             combined_mean = torch.gather(combined_mean, 1, indices)
             combined_mean = combined_mean.repeat(1, channels, 1)
-            combined_mean = combined_mean + embedding
         else:
             weight = F.softmax(combined_mean, dim=1)
             combined_mean = torch.sum(
                 combined_mean * weight, dim=1, keepdim=True
             ).repeat(1, channels, 1)
-            combined_mean = combined_mean + embedding
 
         input_core = combined_mean[:, :en_channels, :]
 
@@ -216,7 +212,7 @@ class Model(nn.Module):
                         configs.d_model,
                         configs.n_heads,
                     ),
-                    STAR_patch(configs.d_model, configs.d_core, configs.enc_in),
+                    STAR_patch(configs.d_model, configs.d_core),
                     configs.d_model,
                     configs.d_ff,
                     dropout=configs.dropout,
