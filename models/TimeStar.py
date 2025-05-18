@@ -51,7 +51,7 @@ class STAR_patch(nn.Module):
             combined_mean = combined_mean + embedding
 
         # mlp fusion
-        combined_mean_cat = torch.cat([input, combined_mean], -1)
+        combined_mean_cat = torch.cat([concated_input, combined_mean], -1)
 
         combined_mean_cat = self.dropout(F.gelu(self.gen3(combined_mean_cat)))
 
