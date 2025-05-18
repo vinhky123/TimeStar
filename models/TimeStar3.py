@@ -235,10 +235,7 @@ class Model(nn.Module):
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed)
-        print(enc_out.shape)
-        dec_out = self.decoder(enc_out)
-
-        print(dec_out.shape)
+        dec_out = self.decoder(enc_out).reshape(0, 2, 1)
 
         if self.use_norm:
             # De-Normalization from Non-stationary Transformer
