@@ -119,6 +119,7 @@ class EncoderLayer(nn.Module):
     def __init__(
         self,
         self_attention,
+        star,
         cross_attention,
         d_model,
         d_ff=None,
@@ -128,6 +129,7 @@ class EncoderLayer(nn.Module):
         super(EncoderLayer, self).__init__()
         d_ff = d_ff or 4 * d_model
         self.self_attention = self_attention
+        self.star = star
         self.cross_attention = cross_attention
         self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
         self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
