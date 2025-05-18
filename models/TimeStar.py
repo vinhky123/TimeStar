@@ -19,6 +19,7 @@ class STAR_patch(nn.Module):
         self.gen4 = nn.Linear(d_series, d_series)
         self.embedding = nn.Parameter(torch.randn(1, channels * 2 + 4, d_core))
         self.attention = nn.Linear(d_series, channels)
+        self.pooling_attention = nn.Linear(d_series, channels)  # For attention weights
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, input, ex_input, *args, **kwargs):
@@ -55,9 +56,21 @@ class STAR_patch(nn.Module):
 
         combined_mean_cat = self.dropout(F.gelu(self.gen3(combined_mean_cat)))
 
-        scores = self.attention(combined_mean_cat)
-        scores = F.softmax(scores, dim=1)
-        combined_mean_cat = torch.einsum("bcd,bcn->bnd", combined_mean_cat, scores)
+        # Complex pooling mechanism
+        if self.training:
+            # Stochastic pooling during training
+            ratio = F.softmax(self.pooling_attention(combined_mean_cat), dim=1)
+            ratio = ratio.permute(0, 2, 1)
+            ratio = ratio.reshape(-1, channels)
+            indices = torch.multinomial(ratio, en_channels)
+            indices = indices.view(batch_size, -1, en_channels).permute(0, 2, 1)
+            combined_mean_cat = torch.gather(combined_mean_cat, 1, indices)
+        else:
+            # Weighted pooling during inference
+            weight = F.softmax(self.pooling_attention(combined_mean_cat), dim=1)
+            combined_mean_cat = torch.sum(
+                combined_mean_cat * weight, dim=1, keepdim=True
+            ).repeat(1, en_channels, 1)
 
         combined_mean_cat = self.gen4(combined_mean_cat)
         output = combined_mean_cat
