@@ -52,6 +52,8 @@ class STAR_patch(nn.Module):
         combined_mean_cat = self.gen4(combined_mean_cat)
         output = combined_mean_cat
 
+        print(output.shape)
+
         return output, None
 
 
