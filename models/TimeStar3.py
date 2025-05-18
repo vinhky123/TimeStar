@@ -217,10 +217,7 @@ class Model(nn.Module):
             ],
             norm_layer=torch.nn.LayerNorm(configs.d_model),
         )
-        self.head_nf = configs.d_model * (self.patch_num + 1)
-        self.head = FlattenHead(
-            configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
-        )
+        self.decoder = nn.Linear(configs.d_model, configs.pred_len)
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         if self.use_norm:
@@ -238,14 +235,7 @@ class Model(nn.Module):
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed)
-        enc_out = torch.reshape(
-            enc_out, (-1, n_vars, enc_out.shape[-2], enc_out.shape[-1])
-        )
-        # z: [bs x nvars x d_model x patch_num]
-        enc_out = enc_out.permute(0, 1, 3, 2)
-
-        dec_out = self.head(enc_out)  # z: [bs x nvars x target_window]
-        dec_out = dec_out.permute(0, 2, 1)
+        dec_out = self.decoder(enc_out)
 
         if self.use_norm:
             # De-Normalization from Non-stationary Transformer
