@@ -50,7 +50,7 @@ class STAR_patch(nn.Module):
         combined_mean_cat = torch.cat([ex_input, ex_core], -1)
         combined_mean_cat = self.dropout(F.gelu(self.gen3(combined_mean_cat)))
         combined_mean_cat = self.gen4(combined_mean_cat)
-        output = combined_mean_cat
+        output = combined_mean_cat[:, :-4, :]
 
         return output, None
 
