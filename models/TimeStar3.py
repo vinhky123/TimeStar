@@ -162,7 +162,6 @@ class EncoderLayer(nn.Module):
         x_glb_ori = x[:, -1, :].unsqueeze(1)
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
 
-        x_glb = self.glbtk_norm(x_glb)
         output = self.cross_attention(x_glb, cross)[0]
         y = output
 
