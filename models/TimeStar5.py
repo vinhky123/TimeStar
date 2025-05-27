@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from layers.SelfAttention_Family import FullAttention, AttentionLayer
-from layers.Embed import DataEmbedding_inverted, PositionalEmbedding
+from layers.Embed import DataEmbedding_inverted, PositionalEmbedding, DataEmbedding
 import numpy as np
 from layers.Conv_Blocks import Inception_Block_V1
 
@@ -255,9 +255,15 @@ class Model(nn.Module):
         self.patch_num = int(configs.seq_len // configs.patch_len)
         self.n_vars = 1 if configs.features == "MS" else configs.enc_in
         # Embedding
-        self.en_embedding = EnEmbedding(
-            self.n_vars, configs.d_model, self.patch_len, configs.dropout
+        self.en_embedding = DataEmbedding(
+            configs.enc_in,
+            configs.d_model,
+            configs.embed,
+            configs.freq,
+            configs.dropout,
         )
+
+        self.en_proj = nn.Linear(configs.seq_len, configs.seq_len + configs.pred_len)
 
         self.ex_embedding = DataEmbedding_inverted(
             configs.seq_len,
@@ -299,13 +305,13 @@ class Model(nn.Module):
 
         _, _, N = x_enc.shape
 
-        en_embed, n_vars = self.en_embedding(x_enc.permute(0, 2, 1))
+        en_embed = self.en_embedding(x_enc, x_mark_enc)
+        en_embed = self.en_proj(en_embed.permute(0, 2, 1)).permute(0, 2, 1)
+
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed, x_enc)
-        enc_out = torch.reshape(
-            enc_out, (-1, n_vars, enc_out.shape[-2], enc_out.shape[-1])
-        )
+
         # z: [bs x nvars x d_model x patch_num]
         enc_out = enc_out.permute(0, 1, 3, 2)
 
