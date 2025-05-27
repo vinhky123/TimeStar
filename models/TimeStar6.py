@@ -230,7 +230,7 @@ class Model(nn.Module):
             ],
             norm_layer=torch.nn.LayerNorm(configs.d_model),
         )
-        self.head_nf = configs.d_model * (self.patch_num + 1)
+        self.head_nf = configs.d_model * (self.patch_num + 2)
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
         )
