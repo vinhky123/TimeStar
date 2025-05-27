@@ -218,9 +218,7 @@ class EncoderLayer(nn.Module):
     def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
         B, L, D = cross.shape
         # x shape [b * n_vars, patch_num + 1, d_model]
-        x = x + self.dropout(
-            self.self_attention(x, x, x, attn_mask=x_mask, tau=tau, delta=None)[0]
-        )
+        x = x + self.dropout(self.self_attention(x))
         x = self.norm1(x)
 
         x_glb_ori = x[:, -1, :].unsqueeze(1)
