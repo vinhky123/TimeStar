@@ -255,7 +255,9 @@ class Model(nn.Module):
         )
         # z: [bs x nvars x d_model x patch_num]
         enc_out = enc_out.permute(0, 1, 3, 2)
+        print(enc_out.shape)
         enc_out = enc_out[:, :, :, -(self.num_reg + 1) : -1]
+        print(enc_out.shape)
 
         dec_out = self.head(enc_out)  # z: [bs x nvars x target_window]
         dec_out = dec_out.permute(0, 2, 1)
