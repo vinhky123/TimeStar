@@ -71,14 +71,14 @@ class FlattenHead(nn.Module):
 
 
 class EnEmbedding(nn.Module):
-    def __init__(self, n_vars, d_model, patch_len, dropout):
+    def __init__(self, n_vars, d_model, patch_len, dropout, num_reg):
         super(EnEmbedding, self).__init__()
         # Patching
         self.patch_len = patch_len
-        self.d_model = d_model
 
         self.value_embedding = nn.Linear(patch_len, d_model, bias=False)
-        self.glb_token = nn.Parameter(torch.randn(1, n_vars, 1, d_model * 2))
+        self.glb_token = nn.Parameter(torch.randn(1, n_vars, 1, d_model))
+        self.reg_token = nn.Parameter(torch.randn(1, n_vars, num_reg, d_model))
         self.position_embedding = PositionalEmbedding(d_model)
 
         self.dropout = nn.Dropout(dropout)
@@ -87,15 +87,14 @@ class EnEmbedding(nn.Module):
         # do patching
         n_vars = x.shape[1]
         glb = self.glb_token.repeat((x.shape[0], 1, 1, 1))
-        glb_1 = glb[:, :, :, : self.d_model]
-        glb_2 = glb[:, :, :, self.d_model :]
+        reg = self.reg_token.repeat((x.shape[0], 1, 1, 1))
 
         x = x.unfold(dimension=-1, size=self.patch_len, step=self.patch_len)
         x = torch.reshape(x, (x.shape[0] * x.shape[1], x.shape[2], x.shape[3]))
         # Input encoding
         x = self.value_embedding(x) + self.position_embedding(x)
         x = torch.reshape(x, (-1, n_vars, x.shape[-2], x.shape[-1]))
-        x = torch.cat([x, glb_1, glb_2], dim=2)
+        x = torch.cat([x, reg, glb], dim=2)
         x = torch.reshape(x, (x.shape[0] * x.shape[1], x.shape[2], x.shape[3]))
         return self.dropout(x), n_vars
 
@@ -142,7 +141,6 @@ class EncoderLayer(nn.Module):
         d_ff = d_ff or 4 * d_model
         self.self_attention = self_attention
         self.cross_attention = cross_attention
-        self.glb_proj = nn.Linear(d_model * 2, d_model)
         self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
         self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
         self.norm1 = nn.LayerNorm(d_model)
@@ -154,16 +152,12 @@ class EncoderLayer(nn.Module):
     def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
         B, L, D = cross.shape
         # x shape [b * n_vars, patch_num + 1, d_model]
-
         x = x + self.dropout(
             self.self_attention(x, x, x, attn_mask=x_mask, tau=tau, delta=None)[0]
         )
         x = self.norm1(x)
 
-        x_glb_ori_2 = x[:, -1, :].unsqueeze(1)
-        x_glb_ori_1 = x[:, -2, :].unsqueeze(1)
-        x_glb_ori = torch.cat([x_glb_ori_1, x_glb_ori_2], dim=-2)
-        x_glb_ori = self.glb_proj(x_glb_ori)
+        x_glb_ori = x[:, -1, :].unsqueeze(1)
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
 
         x_glb_attn = self.dropout(self.cross_attention(x_glb, cross)[0])
@@ -193,9 +187,14 @@ class Model(nn.Module):
         self.patch_len = configs.patch_len
         self.patch_num = int(configs.seq_len // configs.patch_len)
         self.n_vars = 1 if configs.features == "MS" else configs.enc_in
+        self.num_reg = configs.num_reg
         # Embedding
         self.en_embedding = EnEmbedding(
-            self.n_vars, configs.d_model, self.patch_len, configs.dropout
+            self.n_vars,
+            configs.d_model,
+            self.patch_len,
+            configs.dropout,
+            configs.num_reg,
         )
 
         self.ex_embedding = DataEmbedding_inverted(
@@ -230,7 +229,7 @@ class Model(nn.Module):
             ],
             norm_layer=torch.nn.LayerNorm(configs.d_model),
         )
-        self.head_nf = configs.d_model * (self.patch_num + 2)
+        self.head_nf = configs.d_model * (self.patch_num + 1)
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
         )
@@ -256,6 +255,7 @@ class Model(nn.Module):
         )
         # z: [bs x nvars x d_model x patch_num]
         enc_out = enc_out.permute(0, 1, 3, 2)
+        enc_out = enc_out[:, :, :, -(self.num_reg + 1) : -1]
 
         dec_out = self.head(enc_out)  # z: [bs x nvars x target_window]
         dec_out = dec_out.permute(0, 2, 1)

@@ -335,6 +335,8 @@ if __name__ == "__main__":
     # TimeXer
     parser.add_argument("--patch_len", type=int, default=16, help="patch length")
 
+    parser.add_argument("--num_reg", type=int, default=2, help="number of registers")
+
     args = parser.parse_args()
     if torch.cuda.is_available() and args.use_gpu:
         args.device = torch.device("cuda:{}".format(args.gpu))

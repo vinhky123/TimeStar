@@ -1,6 +1,14 @@
 import os
 import torch
-from models import TimeStar, TimeStar2, TimeStar3, TimeStar4, TimeStar5, TimeStar6
+from models import (
+    TimeStar,
+    TimeStar2,
+    TimeStar3,
+    TimeStar4,
+    TimeStar5,
+    TimeStar6,
+    TimeStar7,
+)
 
 
 class Exp_Basic(object):
@@ -13,6 +21,7 @@ class Exp_Basic(object):
             "TimeStar4": TimeStar4,
             "TimeStar5": TimeStar5,
             "TimeStar6": TimeStar6,
+            "TimeStar7": TimeStar7,
         }
         if args.model == "Mamba":
             print("Please make sure you have successfully installed mamba_ssm")
