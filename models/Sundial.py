@@ -51,7 +51,6 @@ class Model(nn.Module):
             attention_mask = torch.ones(B, L, device=x.device)
             outputs = self.pretrained_model(
                 input_ids=x_i,
-                attention_mask=attention_mask,
                 return_dict=True,
                 output_hidden_states=True,
                 revin=True,
