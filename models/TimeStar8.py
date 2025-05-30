@@ -99,10 +99,10 @@ class EncoderLayer(nn.Module):
             self.self_attention(x, x, x, attn_mask=x_mask, tau=tau, delta=None)[0]
         )
         x = self.norm1(x)
-        self.w_refine = self.w_refine.repeat((B, 1, 1))
+        self.w_refine_temp = self.w_refine.repeat((B, 1, 1))
 
         x_glb_ori = x[:, -1, :].unsqueeze(1)
-        x_glb_ori = x_glb_ori * self.w_refine
+        x_glb_ori = x_glb_ori * self.w_refine_temp
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
         x_glb_attn = self.dropout(
             self.cross_attention(
