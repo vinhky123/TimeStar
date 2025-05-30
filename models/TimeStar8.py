@@ -95,6 +95,7 @@ class EncoderLayer(nn.Module):
         self.norm3 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
+        self.glb_proj = nn.Linear(d_model * J, d_model)
         self.J = J
 
     def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
@@ -105,6 +106,8 @@ class EncoderLayer(nn.Module):
         x = self.norm1(x)
 
         x_glb_ori = x[:, -self.J :, :]
+        x_glb_ori = torch.reshape(x_glb_ori, (B, 1, -1))
+        x_glb_ori = self.glb_proj(x_glb_ori)
 
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
         x_glb_attn = self.dropout(
@@ -112,15 +115,11 @@ class EncoderLayer(nn.Module):
                 x_glb, cross, cross, attn_mask=cross_mask, tau=tau, delta=delta
             )[0]
         )
-        x_glb_attn = torch.reshape(
-            x_glb_attn,
-            (-1, self.J, x_glb_attn.shape[2]),
-        )
 
         x_glb = x_glb_ori + x_glb_attn
         x_glb = self.norm2(x_glb)
 
-        y = x = torch.cat([x[:, : -self.J, :], x_glb], dim=1)
+        y = x = torch.cat([x[:, :-1, :], x_glb], dim=1)
 
         y = self.dropout(self.activation(self.conv1(y.transpose(-1, 1))))
         y = self.dropout(self.conv2(y).transpose(-1, 1))
