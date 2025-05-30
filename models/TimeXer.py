@@ -1,10 +1,8 @@
 import torch
 import torch.nn as nn
-from transformers import AutoModelForCausalLM
 import torch.nn.functional as F
 from layers.SelfAttention_Family import FullAttention, AttentionLayer
 from layers.Embed import DataEmbedding_inverted, PositionalEmbedding
-from layers.Transformer_EncDec import Encoder, Decoder, EncoderLayer, DecoderLayer
 import numpy as np
 
 
@@ -21,6 +19,33 @@ class FlattenHead(nn.Module):
         x = self.linear(x)
         x = self.dropout(x)
         return x
+
+
+class EnEmbedding(nn.Module):
+    def __init__(self, n_vars, d_model, patch_len, dropout):
+        super(EnEmbedding, self).__init__()
+        # Patching
+        self.patch_len = patch_len
+
+        self.value_embedding = nn.Linear(patch_len, d_model, bias=False)
+        self.glb_token = nn.Parameter(torch.randn(1, n_vars, 1, d_model))
+        self.position_embedding = PositionalEmbedding(d_model)
+
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        # do patching
+        n_vars = x.shape[1]
+        glb = self.glb_token.repeat((x.shape[0], 1, 1, 1))
+
+        x = x.unfold(dimension=-1, size=self.patch_len, step=self.patch_len)
+        x = torch.reshape(x, (x.shape[0] * x.shape[1], x.shape[2], x.shape[3]))
+        # Input encoding
+        x = self.value_embedding(x) + self.position_embedding(x)
+        x = torch.reshape(x, (-1, n_vars, x.shape[-2], x.shape[-1]))
+        x = torch.cat([x, glb], dim=2)
+        x = torch.reshape(x, (x.shape[0] * x.shape[1], x.shape[2], x.shape[3]))
+        return self.dropout(x), n_vars
 
 
 class Encoder(nn.Module):
@@ -107,6 +132,9 @@ class Model(nn.Module):
         self.patch_num = int(configs.seq_len // configs.patch_len)
         self.n_vars = 1 if configs.features == "MS" else configs.enc_in
         # Embedding
+        self.en_embedding = EnEmbedding(
+            self.n_vars, configs.d_model, self.patch_len, configs.dropout
+        )
 
         self.ex_embedding = DataEmbedding_inverted(
             configs.seq_len,
@@ -115,12 +143,6 @@ class Model(nn.Module):
             configs.freq,
             configs.dropout,
         )
-
-        self.pretrained_model = AutoModelForCausalLM.from_pretrained(
-            "thuml/sundial-base-128m", trust_remote_code=True
-        )
-
-        self.w_refine = nn.Parameter(torch.randn(1, 6, configs.d_model))
 
         # Encoder-only architecture
         self.encoder = Encoder(
@@ -155,34 +177,12 @@ class Model(nn.Module):
             ],
             norm_layer=torch.nn.LayerNorm(configs.d_model),
         )
-
-        self.cls_token = nn.Parameter(torch.randn(1, self.n_vars, 1, configs.d_model))
         self.head_nf = configs.d_model * (self.patch_num + 1)
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
         )
 
-    def get_hidden_states(self, x):
-        B, L, N = x.shape
-        last_hidden_states = []
-        w_refine = self.w_refine.repeat(B, 1, 1)
-        for param in self.pretrained_model.parameters():
-            param.requires_grad = False
-
-        for i in range(N):
-            x_i = x[:, :, i]
-            outputs = self.pretrained_model(
-                input_ids=x_i,
-                return_dict=True,
-                output_hidden_states=True,
-                revin=True,
-            )
-            last_hidden_states.append(outputs.hidden_states[-1] * w_refine)
-
-        return torch.stack(last_hidden_states, dim=2)  # [B, patch_num, d_model 786]
-
-    def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
-        B, L, N = x_enc.shape
+    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         if self.use_norm:
             # Normalization from Non-stationary Transformer
             means = x_enc.mean(1, keepdim=True).detach()
@@ -194,27 +194,50 @@ class Model(nn.Module):
 
         _, _, N = x_enc.shape
 
-        pretrained_hidden_states = self.get_hidden_states(x_enc).permute(
-            0, 2, 1, 3
-        )  # [B, patch_num, n_vars, d_model 786]
-
-        en_embed = torch.cat(
-            [pretrained_hidden_states, self.cls_token.repeat(B, 1, 1, 1)], dim=2
+        en_embed, n_vars = self.en_embedding(
+            x_enc[:, :, -1].unsqueeze(-1).permute(0, 2, 1)
         )
-        en_embed = torch.reshape(
-            en_embed,
-            (
-                en_embed.shape[0] * en_embed.shape[1],
-                en_embed.shape[2],
-                en_embed.shape[3],
-            ),
-        )
+        ex_embed = self.ex_embedding(x_enc[:, :, :-1], x_mark_enc)
 
+        enc_out = self.encoder(en_embed, ex_embed)
+        enc_out = torch.reshape(
+            enc_out, (-1, n_vars, enc_out.shape[-2], enc_out.shape[-1])
+        )
+        # z: [bs x nvars x d_model x patch_num]
+        enc_out = enc_out.permute(0, 1, 3, 2)
+
+        dec_out = self.head(enc_out)  # z: [bs x nvars x target_window]
+        dec_out = dec_out.permute(0, 2, 1)
+
+        if self.use_norm:
+            # De-Normalization from Non-stationary Transformer
+            dec_out = dec_out * (
+                stdev[:, 0, -1:].unsqueeze(1).repeat(1, self.pred_len, 1)
+            )
+            dec_out = dec_out + (
+                means[:, 0, -1:].unsqueeze(1).repeat(1, self.pred_len, 1)
+            )
+
+        return dec_out
+
+    def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+        if self.use_norm:
+            # Normalization from Non-stationary Transformer
+            means = x_enc.mean(1, keepdim=True).detach()
+            x_enc = x_enc - means
+            stdev = torch.sqrt(
+                torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5
+            )
+            x_enc /= stdev
+
+        _, _, N = x_enc.shape
+
+        en_embed, n_vars = self.en_embedding(x_enc.permute(0, 2, 1))
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed)
         enc_out = torch.reshape(
-            enc_out, (-1, self.n_vars, enc_out.shape[-2], enc_out.shape[-1])
+            enc_out, (-1, n_vars, enc_out.shape[-2], enc_out.shape[-1])
         )
         # z: [bs x nvars x d_model x patch_num]
         enc_out = enc_out.permute(0, 1, 3, 2)
