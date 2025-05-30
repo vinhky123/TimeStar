@@ -111,6 +111,7 @@ class EncoderLayer(nn.Module):
 
         x_glb_ori = x[:, -self.J :, :]
         x_glb_ori = torch.reshape(x_glb_ori, (B, 1, -1))
+        print(x_glb_ori.shape)
         x_glb_ori = self.glb_proj(x_glb_ori)
 
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
