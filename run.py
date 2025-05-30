@@ -337,6 +337,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--num_reg", type=int, default=2, help="number of registers")
 
+    parser.add_argument("--J", type=int, default=1, help="number of global tokens")
+
     args = parser.parse_args()
     if torch.cuda.is_available() and args.use_gpu:
         args.device = torch.device("cuda:{}".format(args.gpu))
