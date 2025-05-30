@@ -111,6 +111,7 @@ class EncoderLayer(nn.Module):
                 x_glb, cross, cross, attn_mask=cross_mask, tau=tau, delta=delta
             )[0]
         )
+        print(x_glb_attn.shape)
         x_glb_attn = torch.reshape(
             x_glb_attn,
             (x_glb_attn.shape[0] * x_glb_attn.shape[1], self.J, x_glb_attn.shape[2]),
