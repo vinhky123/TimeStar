@@ -167,6 +167,8 @@ class Model(nn.Module):
         # Reshape input: [B, L, N] -> [B * N, L]
         x_reshaped = x.permute(0, 2, 1).reshape(B * N, L)
         w_refine = self.w_refine.repeat(B, 1, 1)
+        for param in self.pretrained_model.parameters():
+            param.requires_grad = False
 
         # Gọi pretrained model một lần duy nhất
         outputs = self.pretrained_model(
