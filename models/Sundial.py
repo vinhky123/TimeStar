@@ -155,7 +155,8 @@ class Model(nn.Module):
             ],
             norm_layer=torch.nn.LayerNorm(configs.d_model),
         )
-        self.cls_token = nn.Parameter(torch.randn(1, 1, configs.d_model))
+
+        self.cls_token = nn.Parameter(torch.randn(1, self.n_vars, 1, configs.d_model))
         self.head_nf = configs.d_model * (self.patch_num + 1)
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
@@ -193,15 +194,12 @@ class Model(nn.Module):
 
         _, _, N = x_enc.shape
 
-        pretrained_hidden_states = self.get_hidden_states(
-            x_enc
-        )  # [B, patch_num, d_model 786]
-
-        print(pretrained_hidden_states.shape)
-        print(self.cls_token.repeat(B, 1, 1).shape)
+        pretrained_hidden_states = self.get_hidden_states(x_enc).permute(
+            0, 2, 1, 3
+        )  # [B, patch_num, n_vars, d_model 786]
 
         en_embed = torch.cat(
-            [pretrained_hidden_states, self.cls_token.repeat(B, 1, 1)], dim=1
+            [pretrained_hidden_states, self.cls_token.repeat(B, 1, 1)], dim=2
         )
 
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
