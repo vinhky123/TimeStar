@@ -176,11 +176,9 @@ class Model(nn.Module):
                 output_hidden_states=True,
                 revin=True,
             )
-            last_hidden_states.append(outputs.hidden_states[-1])
+            last_hidden_states.append(outputs.hidden_states[-1] * w_refine)
 
-        return (
-            torch.stack(last_hidden_states, dim=2) * w_refine
-        )  # [B, patch_num, d_model 786]
+        return torch.stack(last_hidden_states, dim=2)  # [B, patch_num, d_model 786]
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
