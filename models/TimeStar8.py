@@ -78,7 +78,6 @@ class EncoderLayer(nn.Module):
         d_ff=None,
         dropout=0.1,
         activation="relu",
-        n_vars=None,
     ):
         super(EncoderLayer, self).__init__()
         d_ff = d_ff or 4 * d_model
@@ -91,7 +90,6 @@ class EncoderLayer(nn.Module):
         self.norm3 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
-        self.w_refine = nn.Parameter(torch.ones(1, n_vars, d_model), requires_grad=True)
 
     def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
         B, L, D = cross.shape
@@ -99,10 +97,8 @@ class EncoderLayer(nn.Module):
             self.self_attention(x, x, x, attn_mask=x_mask, tau=tau, delta=None)[0]
         )
         x = self.norm1(x)
-        self.w_refine_temp = self.w_refine.repeat((x.shape[0], 1, 1))
 
         x_glb_ori = x[:, -1, :].unsqueeze(1)
-        x_glb_ori = x_glb_ori * self.w_refine_temp
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
         x_glb_attn = self.dropout(
             self.cross_attention(
@@ -176,7 +172,6 @@ class Model(nn.Module):
                     configs.d_ff,
                     dropout=configs.dropout,
                     activation=configs.activation,
-                    n_vars=configs.enc_in,
                 )
                 for l in range(configs.e_layers)
             ],
@@ -186,6 +181,7 @@ class Model(nn.Module):
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
         )
+        self.refine = nn.Parameter(torch.ones(1, configs.enc_in, configs.d_model))
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         if self.use_norm:
