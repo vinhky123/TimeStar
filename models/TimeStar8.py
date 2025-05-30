@@ -108,10 +108,14 @@ class EncoderLayer(nn.Module):
             self.self_attention(x, x, x, attn_mask=x_mask, tau=tau, delta=None)[0]
         )
         x = self.norm1(x)
+        print(x.shape)
 
         x_glb_ori = x[:, -self.J :, :]
+        print(x_glb_ori.shape)
         x_glb_ori = torch.reshape(x_glb_ori, (B, 1, -1))
+        print(x_glb_ori.shape)
         x_glb_ori = self.glb_proj(x_glb_ori)
+        print(x_glb_ori.shape)
 
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
         x_glb_attn = self.dropout(
