@@ -91,7 +91,7 @@ class EncoderLayer(nn.Module):
         self.norm3 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
-        self.refine = nn.Parameter(torch.randn(1, n_vars, d_model))
+        self.refine = nn.Parameter(1, n_vars, d_model)
 
     def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
         B, L, D = cross.shape
