@@ -104,7 +104,6 @@ class EncoderLayer(nn.Module):
         x = self.norm1(x)
 
         x_glb_ori = x[:, -self.J :, :]
-        x_glb_ori = x_glb_ori.max(dim=1, keepdim=True)[0]
 
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
         x_glb_attn = self.dropout(
