@@ -12,7 +12,7 @@ class Model(nn.Module):
         )
         self.n_vars = configs.enc_in
 
-    def forward(self, x):
+    def forward(self, x, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         return self.model.generate(
             x, max_new_tokens=self.pred_len, num_samples=self.n_vars
         )
