@@ -48,7 +48,7 @@ class Model(nn.Module):
 
         for i in range(N):
             x_i = x[:, :, i]
-            attention_mask = torch.ones(B, L, device=x.device)
+            print(x_i.shape)
             outputs = self.pretrained_model(
                 input_ids=x_i,
                 return_dict=True,
@@ -64,5 +64,4 @@ class Model(nn.Module):
     ):
         B, L, N = x.shape
         x_enc = self.get_hidden_states(x)
-        print(x_enc.shape)
         return x_enc
