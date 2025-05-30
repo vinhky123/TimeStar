@@ -108,8 +108,7 @@ class EncoderLayer(nn.Module):
         x = self.norm1(x)
 
         x_glb_ori = x[:, -self.J :, :]
-        x_glb_ori = torch.reshape(x_glb_ori, (x_glb_ori.shape[0], 1, -1))
-        x_glb_ori = self.glb_proj(x_glb_ori)
+        x_glb_ori = x_glb_ori.mean(dim=1, keepdim=True)
 
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
         x_glb_attn = self.dropout(
