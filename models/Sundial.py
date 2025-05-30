@@ -197,6 +197,9 @@ class Model(nn.Module):
             x_enc
         )  # [B, patch_num, d_model 786]
 
+        print(pretrained_hidden_states.shape)
+        print(self.cls_token.repeat(B, 1, 1).shape)
+
         en_embed = torch.cat(
             [pretrained_hidden_states, self.cls_token.repeat(B, 1, 1)], dim=1
         )
