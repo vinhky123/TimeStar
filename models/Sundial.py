@@ -48,13 +48,13 @@ class Model(nn.Module):
 
         for i in range(N):
             x_i = x[:, :, i]
-            print(x_i.shape)
             outputs = self.pretrained_model(
                 input_ids=x_i,
                 return_dict=True,
                 output_hidden_states=True,
                 revin=True,
             )
+            print(outputs.shape)
             last_hidden_states.append(outputs.hidden_states[-1])
 
         return torch.stack(last_hidden_states, dim=2)
