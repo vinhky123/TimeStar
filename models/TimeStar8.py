@@ -97,9 +97,7 @@ class EncoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.patch_num = patch_num
         self.activation = F.relu if activation == "relu" else F.gelu
-        self.glb_proj = nn.Linear(
-            d_model * (self.patch_num + 1) * J, d_model * (self.patch_num + 1)
-        )
+        self.glb_proj = nn.Linear(d_model * J, d_model)
         self.J = J
 
     def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
@@ -108,14 +106,10 @@ class EncoderLayer(nn.Module):
             self.self_attention(x, x, x, attn_mask=x_mask, tau=tau, delta=None)[0]
         )
         x = self.norm1(x)
-        print(x.shape)
 
         x_glb_ori = x[:, -self.J :, :]
-        print(x_glb_ori.shape)
-        x_glb_ori = torch.reshape(x_glb_ori, (B, 1, -1))
-        print(x_glb_ori.shape)
+        x_glb_ori = torch.reshape(x_glb_ori, (x_glb_ori.shape[0], 1, -1))
         x_glb_ori = self.glb_proj(x_glb_ori)
-        print(x_glb_ori.shape)
 
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
         x_glb_attn = self.dropout(
