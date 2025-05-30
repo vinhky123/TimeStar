@@ -98,7 +98,6 @@ class EncoderLayer(nn.Module):
 
     def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
         B, L, D = cross.shape
-        print(x.shape)
         x = x + self.dropout(
             self.self_attention(x, x, x, attn_mask=x_mask, tau=tau, delta=None)[0]
         )
@@ -115,8 +114,8 @@ class EncoderLayer(nn.Module):
         x_glb_attn = torch.reshape(
             x_glb_attn, (x_glb_attn.shape[0] * x_glb_attn.shape[1], x_glb_attn.shape[2])
         ).unsqueeze(1)
-        x_glb_attn_1 = x_glb_attn[: B * L, :, :]
-        x_glb_attn_2 = x_glb_attn[B * L :, :, :]
+        x_glb_attn_1 = x_glb_attn[:B, :, :]
+        x_glb_attn_2 = x_glb_attn[B:, :, :]
         x_glb_attn = (x_glb_attn_1 + x_glb_attn_2) / 2
         x_glb = x_glb_ori + x_glb_attn
         x_glb = self.norm2(x_glb)
