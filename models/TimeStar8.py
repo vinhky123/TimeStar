@@ -111,7 +111,6 @@ class EncoderLayer(nn.Module):
 
         x_glb_ori = x[:, -self.J :, :]
         x_glb_ori = torch.reshape(x_glb_ori, (B, 1, -1))
-        print(x_glb_ori.shape)
         x_glb_ori = self.glb_proj(x_glb_ori)
 
         x_glb = torch.reshape(x_glb_ori, (B, -1, D))
@@ -120,6 +119,11 @@ class EncoderLayer(nn.Module):
                 x_glb, cross, cross, attn_mask=cross_mask, tau=tau, delta=delta
             )[0]
         )
+
+        x_glb_attn = torch.reshape(
+            x_glb_attn,
+            (x_glb_attn.shape[0] * x_glb_attn.shape[1], x_glb_attn.shape[2]),
+        ).unsqueeze(1)
 
         x_glb = x_glb_ori + x_glb_attn
         x_glb = self.norm2(x_glb)
