@@ -116,7 +116,7 @@ class EncoderLayer(nn.Module):
         ).unsqueeze(1)
         x_glb_attn_1 = x_glb_attn[: B * L, :, :]
         x_glb_attn_2 = x_glb_attn[B * L :, :, :]
-        x_glb_attn = x_glb_attn.mean(dim=1)
+        x_glb_attn = (x_glb_attn_1 + x_glb_attn_2) / 2
         x_glb = x_glb_ori + x_glb_attn
         x_glb = self.norm2(x_glb)
 
