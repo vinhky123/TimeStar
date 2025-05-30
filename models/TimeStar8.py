@@ -114,7 +114,7 @@ class EncoderLayer(nn.Module):
         print(x_glb_attn.shape)
         x_glb_attn = torch.reshape(
             x_glb_attn,
-            (x_glb_attn.shape[0] * x_glb_attn.shape[1], self.J, x_glb_attn.shape[2]),
+            (-1, self.J, x_glb_attn.shape[2]),
         )
 
         x_glb = x_glb_ori + x_glb_attn
