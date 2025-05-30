@@ -98,7 +98,7 @@ class EncoderLayer(nn.Module):
         self.patch_num = patch_num
         self.activation = F.relu if activation == "relu" else F.gelu
         self.glb_proj = nn.Linear(
-            d_model * (self.patch_num + J), d_model * self.patch_num
+            d_model * self.patch_num * J, d_model * self.patch_num
         )
         self.J = J
 
