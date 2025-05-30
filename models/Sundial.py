@@ -156,7 +156,7 @@ class Model(nn.Module):
             norm_layer=torch.nn.LayerNorm(configs.d_model),
         )
 
-        self.cls_token = nn.Parameter(torch.randn(1, self.n_vars, 1, configs.d_model))
+        self.glb_token = nn.Parameter(torch.randn(1, self.n_vars, 1, configs.d_model))
         self.head_nf = configs.d_model * (self.patch_num + 1)
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
@@ -164,22 +164,28 @@ class Model(nn.Module):
 
     def get_hidden_states(self, x):
         B, L, N = x.shape
-        last_hidden_states = []
+        # Reshape input: [B, L, N] -> [B * N, L]
+        x_reshaped = x.permute(0, 2, 1).reshape(B * N, L)
         w_refine = self.w_refine.repeat(B, 1, 1)
-        for param in self.pretrained_model.parameters():
-            param.requires_grad = False
 
-        for i in range(N):
-            x_i = x[:, :, i]
-            outputs = self.pretrained_model(
-                input_ids=x_i,
-                return_dict=True,
-                output_hidden_states=True,
-                revin=True,
-            )
-            last_hidden_states.append(outputs.hidden_states[-1] * w_refine)
+        # Gọi pretrained model một lần duy nhất
+        outputs = self.pretrained_model(
+            input_ids=x_reshaped,
+            return_dict=True,
+            output_hidden_states=True,
+            revin=True,
+        )
 
-        return torch.stack(last_hidden_states, dim=2)  # [B, patch_num, d_model 786]
+        # Lấy hidden states và reshape lại: [B * N, patch_num, d_model] -> [B, patch_num, N, d_model]
+        hidden_states = outputs.hidden_states[-1]  # [B * N, patch_num, d_model]
+        hidden_states = hidden_states.view(B, N, -1, hidden_states.shape[-1]).permute(
+            0, 2, 1, 3
+        )
+
+        # Áp dụng w_refine
+        hidden_states = hidden_states * w_refine.unsqueeze(2)  # Broadcasting w_refine
+
+        return hidden_states  # [B, patch_num, N, d_model]
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
@@ -199,7 +205,7 @@ class Model(nn.Module):
         )  # [B, patch_num, n_vars, d_model 786]
 
         en_embed = torch.cat(
-            [pretrained_hidden_states, self.cls_token.repeat(B, 1, 1, 1)], dim=2
+            [pretrained_hidden_states, self.glb_token.repeat(B, 1, 1, 1)], dim=2
         )
         en_embed = torch.reshape(
             en_embed,
