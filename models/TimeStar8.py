@@ -83,6 +83,7 @@ class EncoderLayer(nn.Module):
         dropout=0.1,
         activation="relu",
         J=1,
+        patch_num=None,
     ):
         super(EncoderLayer, self).__init__()
         d_ff = d_ff or 4 * d_model
@@ -94,8 +95,11 @@ class EncoderLayer(nn.Module):
         self.norm2 = nn.LayerNorm(d_model)
         self.norm3 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
+        self.patch_num = patch_num
         self.activation = F.relu if activation == "relu" else F.gelu
-        self.glb_proj = nn.Linear(d_model * J, d_model)
+        self.glb_proj = nn.Linear(
+            d_model * (self.patch_num + self.J), d_model * self.patch_num
+        )
         self.J = J
 
     def forward(self, x, cross, x_mask=None, cross_mask=None, tau=None, delta=None):
@@ -186,6 +190,7 @@ class Model(nn.Module):
                     dropout=configs.dropout,
                     activation=configs.activation,
                     J=self.J,
+                    patch_num=self.patch_num,
                 )
                 for l in range(configs.e_layers)
             ],
