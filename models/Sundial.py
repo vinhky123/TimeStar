@@ -176,7 +176,6 @@ class Model(nn.Module):
                 output_hidden_states=True,
                 revin=True,
             )
-            print(outputs.hidden_states[-1].shape)
             last_hidden_states.append(outputs.hidden_states[-1])
 
         return (
