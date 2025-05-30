@@ -54,7 +54,7 @@ class Model(nn.Module):
                 output_hidden_states=True,
                 revin=True,
             )
-            print(outputs.shape)
+            print(outputs.hidden_states[-1].shape)
             last_hidden_states.append(outputs.hidden_states[-1])
 
         return torch.stack(last_hidden_states, dim=2)
