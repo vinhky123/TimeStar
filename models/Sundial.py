@@ -215,10 +215,10 @@ class Model(nn.Module):
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed)
-        print(enc_out.shape)
         enc_out = torch.reshape(
             enc_out, (-1, self.n_vars, enc_out.shape[-2], enc_out.shape[-1])
         )
+        print(enc_out.shape)
         # z: [bs x nvars x d_model x patch_num]
         enc_out = enc_out.permute(0, 1, 3, 2)
 
