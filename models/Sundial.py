@@ -184,7 +184,7 @@ class Model(nn.Module):
             0, 2, 1, 3
         )
 
-        return hidden_states[:, -1, :, :].squeeze(1)  # [B, patch_num, N, d_model]
+        return hidden_states[:, -1, :, :].unsqueeze(1)  # [B, patch_num, N, d_model]
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
