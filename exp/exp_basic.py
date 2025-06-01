@@ -10,6 +10,7 @@ from models import (
     TimeStar7,
     TimeStar8,
     Sundial,
+    TimeXer,
 )
 
 
@@ -26,6 +27,7 @@ class Exp_Basic(object):
             "TimeStar7": TimeStar7,
             "TimeStar8": TimeStar8,
             "Sundial": Sundial,
+            "TimeXer": TimeXer,
         }
         if args.model == "Mamba":
             print("Please make sure you have successfully installed mamba_ssm")
