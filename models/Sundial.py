@@ -200,9 +200,8 @@ class Model(nn.Module):
 
         _, _, N = x_enc.shape
 
-        pretrained_hidden_states = self.get_hidden_states(x_enc).permute(
-            0, 2, 1, 3
-        )  # [B, patch_num, n_vars, d_model 786]
+        # [B, 1, n_vars, d_model 786]
+        pretrained_hidden_states = self.get_hidden_states(x_enc).permute(0, 2, 1, 3)
 
         en_embed = torch.reshape(
             pretrained_hidden_states,
@@ -216,6 +215,7 @@ class Model(nn.Module):
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed)
+        print(enc_out.shape)
         enc_out = torch.reshape(
             enc_out, (-1, self.n_vars, enc_out.shape[-2], enc_out.shape[-1])
         )
