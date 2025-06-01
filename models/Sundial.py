@@ -185,20 +185,10 @@ class Model(nn.Module):
             0, 2, 1, 3
         )
 
-        return hidden_states[:, -1, :, :].unsqueeze(1)  # [B, patch_num, N, d_model]
+        return hidden_states[:, -1, :, :].squeeze()  # [B, N, d_model]
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
-        if self.use_norm:
-            # Normalization from Non-stationary Transformer
-            means = x_enc.mean(1, keepdim=True).detach()
-            x_enc = x_enc - means
-            stdev = torch.sqrt(
-                torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5
-            )
-            x_enc /= stdev
-
-        _, _, N = x_enc.shape
 
         # [B, 1, n_vars, d_model 786]
         pretrained_hidden_states = self.get_hidden_states(x_enc).permute(0, 2, 1, 3)
@@ -214,25 +204,10 @@ class Model(nn.Module):
 
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
-        enc_out = self.encoder(en_embed, ex_embed)
-        enc_out = torch.reshape(
-            enc_out, (-1, self.n_vars, enc_out.shape[-2], enc_out.shape[-1])
-        )
-        # z: [bs x nvars x d_model x patch_num]
-        enc_out = enc_out.permute(0, 1, 3, 2)
-        print(enc_out.shape)
+        enc_out = self.encoder(en_embed, ex_embed)  # [B, N, d_model]
 
         dec_out = self.dec(enc_out)  # z: [bs x nvars x target_window]
         dec_out = dec_out.permute(0, 2, 1)
-
-        if self.use_norm:
-            # De-Normalization from Non-stationary Transformer
-            dec_out = dec_out * (
-                stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1)
-            )
-            dec_out = dec_out + (
-                means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1)
-            )
 
         return dec_out
 
