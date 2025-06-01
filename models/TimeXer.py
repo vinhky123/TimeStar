@@ -235,8 +235,6 @@ class Model(nn.Module):
 
         en_embed, n_vars = self.en_embedding(x_enc.permute(0, 2, 1))
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
-        print(en_embed.shape)
-        print(ex_embed.shape)
 
         enc_out = self.encoder(en_embed, ex_embed)
 

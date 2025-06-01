@@ -218,9 +218,9 @@ class Model(nn.Module):
         enc_out = torch.reshape(
             enc_out, (-1, self.n_vars, enc_out.shape[-2], enc_out.shape[-1])
         )
-        print(enc_out.shape)
         # z: [bs x nvars x d_model x patch_num]
         enc_out = enc_out.permute(0, 1, 3, 2)
+        print(enc_out.shape)
 
         dec_out = self.dec(enc_out)  # z: [bs x nvars x target_window]
         dec_out = dec_out.permute(0, 2, 1)
