@@ -160,6 +160,7 @@ class Model(nn.Module):
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
         )
+        self.dec = nn.Linear(configs.d_model, configs.pred_len)
 
     def get_hidden_states(self, x):
         B, L, N = x.shape
@@ -221,7 +222,7 @@ class Model(nn.Module):
         # z: [bs x nvars x d_model x patch_num]
         enc_out = enc_out.permute(0, 1, 3, 2)
 
-        dec_out = self.head(enc_out)  # z: [bs x nvars x target_window]
+        dec_out = self.dec(enc_out)  # z: [bs x nvars x target_window]
         dec_out = dec_out.permute(0, 2, 1)
 
         if self.use_norm:
