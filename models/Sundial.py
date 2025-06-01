@@ -1,3 +1,4 @@
+@ -1,257 +1,255 @@
 import torch
 import torch.nn as nn
 from transformers import AutoModelForCausalLM
@@ -86,7 +87,7 @@ class EncoderLayer(nn.Module):
         x_glb = x_glb_ori + x_glb_attn
         x_glb = self.norm2(x_glb)
 
-        y = x = torch.cat([x[:, :-1, :], x_glb], dim=1)
+        y = x_glb
 
         y = self.dropout(self.activation(self.conv1(y.transpose(-1, 1))))
         y = self.dropout(self.conv2(y).transpose(-1, 1))
@@ -156,11 +157,11 @@ class Model(nn.Module):
             norm_layer=torch.nn.LayerNorm(configs.d_model),
         )
 
+        self.glb_token = nn.Parameter(torch.randn(1, self.n_vars, 1, configs.d_model))
         self.head_nf = configs.d_model * (self.patch_num + 1)
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
         )
-        self.dec = nn.Linear(configs.d_model, configs.pred_len)
 
     def get_hidden_states(self, x):
         B, L, N = x.shape
@@ -185,20 +186,60 @@ class Model(nn.Module):
             0, 2, 1, 3
         )
 
-        return hidden_states[:, -1, :, :].squeeze(1)  # [B, N, d_model]
+        # Áp dụng w_refine
+        hidden_states = hidden_states * w_refine.unsqueeze(2)  # Broadcasting w_refine
+
+        return hidden_states  # [B, patch_num, N, d_model]
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
+        if self.use_norm:
+            # Normalization from Non-stationary Transformer
+            means = x_enc.mean(1, keepdim=True).detach()
+            x_enc = x_enc - means
+            stdev = torch.sqrt(
+                torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5
+            )
+            x_enc /= stdev
 
-        # [B, 1, n_vars, d_model 786]
-        en_embed = self.get_hidden_states(x_enc)
+        _, _, N = x_enc.shape
+
+        pretrained_hidden_states = self.get_hidden_states(x_enc).permute(
+            0, 2, 1, 3
+        )  # [B, patch_num, n_vars, d_model 786]
+
+        en_embed = torch.cat(
+            [pretrained_hidden_states, self.glb_token.repeat(B, 1, 1, 1)], dim=2
+        )
+        en_embed = torch.reshape(
+            en_embed,
+            (
+                en_embed.shape[0] * en_embed.shape[1],
+                en_embed.shape[2],
+                en_embed.shape[3],
+            ),
+        )
 
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
-        enc_out = self.encoder(en_embed, ex_embed)  # [B, N, d_model]
+        enc_out = self.encoder(en_embed, ex_embed)
+        enc_out = torch.reshape(
+            enc_out, (-1, self.n_vars, enc_out.shape[-2], enc_out.shape[-1])
+        )
+        # z: [bs x nvars x d_model x patch_num]
+        enc_out = enc_out.permute(0, 1, 3, 2)
 
-        dec_out = self.dec(enc_out)  # z: [bs x nvars x target_window]
+        dec_out = self.head(enc_out)  # z: [bs x nvars x target_window]
         dec_out = dec_out.permute(0, 2, 1)
+
+        if self.use_norm:
+            # De-Normalization from Non-stationary Transformer
+            dec_out = dec_out * (
+                stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1)
+            )
+            dec_out = dec_out + (
+                means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1)
+            )
 
         return dec_out
 
@@ -210,10 +251,8 @@ class Model(nn.Module):
             if self.features == "M":
                 dec_out = self.forecast_multi(x_enc, x_mark_enc, x_dec, x_mark_dec)
                 return dec_out[:, -self.pred_len :, :]  # [B, L, D]
-
             else:
                 dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
                 return dec_out[:, -self.pred_len :, :]  # [B, L, D]
-
         else:
             return None
