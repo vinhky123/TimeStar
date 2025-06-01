@@ -200,7 +200,7 @@ class Model(nn.Module):
         ex_embed = self.ex_embedding(x_enc[:, :, :-1], x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed)
-        print(enc_out.shape)
+
         enc_out = torch.reshape(
             enc_out, (-1, n_vars, enc_out.shape[-2], enc_out.shape[-1])
         )
@@ -237,6 +237,7 @@ class Model(nn.Module):
         ex_embed = self.ex_embedding(x_enc, x_mark_enc)
 
         enc_out = self.encoder(en_embed, ex_embed)
+        print(enc_out.shape)
         enc_out = torch.reshape(
             enc_out, (-1, n_vars, enc_out.shape[-2], enc_out.shape[-1])
         )
