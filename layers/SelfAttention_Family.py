@@ -209,6 +209,10 @@ class AttentionLayer(nn.Module):
         self.n_heads = n_heads
 
     def forward(self, queries, keys, values, attn_mask, tau=None, delta=None):
+        if len(queries.shape) != 3:
+            print("Lỗi ở đây")
+            print(queries.shape)
+            print(queries)
         B, L, _ = queries.shape
         _, S, _ = keys.shape
         H = self.n_heads
