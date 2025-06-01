@@ -156,7 +156,6 @@ class Model(nn.Module):
             norm_layer=torch.nn.LayerNorm(configs.d_model),
         )
 
-        self.glb_token = nn.Parameter(torch.randn(1, self.n_vars, 1, configs.d_model))
         self.head_nf = configs.d_model * (self.patch_num + 1)
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
@@ -185,7 +184,7 @@ class Model(nn.Module):
             0, 2, 1, 3
         )
 
-        return hidden_states  # [B, patch_num, N, d_model]
+        return hidden_states[:, -1, :, :].squeeze(1)  # [B, patch_num, N, d_model]
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
@@ -204,15 +203,12 @@ class Model(nn.Module):
             0, 2, 1, 3
         )  # [B, patch_num, n_vars, d_model 786]
 
-        en_embed = torch.cat(
-            [pretrained_hidden_states, self.glb_token.repeat(B, 1, 1, 1)], dim=2
-        )
         en_embed = torch.reshape(
-            en_embed,
+            pretrained_hidden_states,
             (
-                en_embed.shape[0] * en_embed.shape[1],
-                en_embed.shape[2],
-                en_embed.shape[3],
+                pretrained_hidden_states.shape[0] * pretrained_hidden_states.shape[1],
+                pretrained_hidden_states.shape[2],
+                pretrained_hidden_states.shape[3],
             ),
         )
 
@@ -247,8 +243,10 @@ class Model(nn.Module):
             if self.features == "M":
                 dec_out = self.forecast_multi(x_enc, x_mark_enc, x_dec, x_mark_dec)
                 return dec_out[:, -self.pred_len :, :]  # [B, L, D]
+
             else:
                 dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
                 return dec_out[:, -self.pred_len :, :]  # [B, L, D]
+
         else:
             return None
