@@ -202,7 +202,7 @@ class Model(nn.Module):
         )
         output = torch.mean(outputs, dim=1)
 
-        return output
+        return output.reshape(B, -1, N)
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
