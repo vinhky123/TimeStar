@@ -195,16 +195,14 @@ class Model(nn.Module):
         B, L, N = x.shape
         x = torch.reshape(x, (B * N, L))
 
-        outputs = self.pretrained_model(
-            input_ids=x,
-            return_dict=True,
-            output_hidden_states=True,
-            revin=True,
+        outputs = self.pretrained_model.generate(
+            x,
+            max_new_tokens=self.pred_len,
+            num_samples=10,
         )
-        output = outputs.logits
-        print(output.shape)
+        print(outputs.shape)
 
-        return output
+        return outputs
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
