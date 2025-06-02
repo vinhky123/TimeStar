@@ -200,7 +200,7 @@ class Model(nn.Module):
             max_new_tokens=self.pred_len,
             num_samples=10,
         )
-        output = torch.average(outputs, dim=1)
+        output = torch.mean(outputs, dim=1)
 
         return output
 
