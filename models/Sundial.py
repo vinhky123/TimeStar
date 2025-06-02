@@ -201,9 +201,9 @@ class Model(nn.Module):
             output_hidden_states=True,
             revin=True,
         )
-        print(outputs.shape)
-        outputs = outputs.reshape(B, N, -1)
-        return outputs
+        output = outputs.logits.reshape(B, N, -1)
+
+        return output
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
