@@ -188,6 +188,16 @@ class Model(nn.Module):
 
         return hidden_states  # [B, patch_num, N, d_model]
 
+    def get_pretrained_result(self, x):
+        B, L, N = x.shape
+        x = torch.reshape(x, (B * N, L))
+        outputs = self.pretrained_model.generate(
+            x,
+            max_new_tokens=self.pred_len,
+            num_samples=B * N,
+        )
+        return outputs
+
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
         if self.use_norm:
@@ -251,5 +261,7 @@ class Model(nn.Module):
             else:
                 dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
                 return dec_out[:, -self.pred_len :, :]  # [B, L, D]
+        elif self.task_name == "pretrained":
+            return self.get_pretrained_result(x_enc)
         else:
             return None
