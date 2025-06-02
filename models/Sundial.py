@@ -201,7 +201,8 @@ class Model(nn.Module):
             output_hidden_states=True,
             revin=True,
         )
-        output = outputs.logits.reshape(B, N, -1)
+        output = outputs.logits
+        print(output.shape)
 
         return output
 
