@@ -157,6 +157,7 @@ class Model(nn.Module):
         )
 
         self.glb_token = nn.Parameter(torch.randn(1, self.n_vars, 1, configs.d_model))
+
         self.head_nf = configs.d_model * (self.patch_num + 1)
         self.head = FlattenHead(
             configs.enc_in, self.head_nf, configs.pred_len, head_dropout=configs.dropout
@@ -180,13 +181,13 @@ class Model(nn.Module):
         )
 
         # Lấy hidden states và reshape lại: [B * N, patch_num, d_model] -> [B, patch_num, N, d_model]
-        hidden_states = outputs.hidden_states[-1]  # [B * N, patch_num, d_model]
+        hidden_states = outputs.hidden_states[0]  # [B * N, patch_num, d_model]
         hidden_states = hidden_states.view(B, N, -1, hidden_states.shape[-1]).permute(
             0, 2, 1, 3
         )
 
         # Áp dụng w_refine
-        hidden_states = hidden_states * w_refine.unsqueeze(2)  # Broadcasting w_refine
+        # hidden_states = hidden_states * w_refine.unsqueeze(2)  # Broadcasting w_refine
 
         return hidden_states  # [B, patch_num, N, d_model]
 
