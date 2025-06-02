@@ -120,6 +120,9 @@ class Model(nn.Module):
             "thuml/sundial-base-128m", trust_remote_code=True
         )
 
+        for param in self.pretrained_model.parameters():
+            param.requires_grad = False
+
         self.w_refine = nn.Parameter(torch.randn(1, 6, configs.d_model))
 
         # Encoder-only architecture
@@ -191,6 +194,7 @@ class Model(nn.Module):
     def get_pretrained_result(self, x):
         B, L, N = x.shape
         x = torch.reshape(x, (B * N, L))
+
         outputs = self.pretrained_model.generate(
             x,
             max_new_tokens=self.pred_len,
