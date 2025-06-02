@@ -11,7 +11,7 @@ TimeStar is an innovative time series forecasting framework that introduces a no
 
 The model architecture's overview is shown in this figure:
 
-![Time Star Model Architecture](img/Model Architecure.png)
+![Time Star Model Architecture](img/Model%20Architecture.png]
 
 ## 📈 Performance
 
