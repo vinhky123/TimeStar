@@ -200,9 +200,9 @@ class Model(nn.Module):
             max_new_tokens=self.pred_len,
             num_samples=10,
         )
-        print(outputs.shape)
+        output = torch.average(outputs, dim=1)
 
-        return outputs
+        return output
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, L, N = x_enc.shape
