@@ -196,6 +196,7 @@ class Model(nn.Module):
             max_new_tokens=self.pred_len,
             num_samples=B * N,
         )
+        outputs = outputs.reshape(B, N, -1)
         return outputs
 
     def forecast_multi(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
