@@ -169,9 +169,6 @@ class Model(nn.Module):
         x_reshaped = x.permute(0, 2, 1).reshape(B * N, L)
         w_refine = self.w_refine.repeat(B, 1, 1)
 
-        for param in self.pretrained_model.parameters():
-            param.requires_grad = False
-
         # Gọi pretrained model một lần duy nhất
         outputs = self.pretrained_model(
             input_ids=x_reshaped,
@@ -187,7 +184,7 @@ class Model(nn.Module):
         )
 
         # Áp dụng w_refine
-        # hidden_states = hidden_states * w_refine.unsqueeze(2)  # Broadcasting w_refine
+        hidden_states = hidden_states * w_refine.unsqueeze(2)  # Broadcasting w_refine
 
         return hidden_states  # [B, patch_num, N, d_model]
 
