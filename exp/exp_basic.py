@@ -1,34 +1,12 @@
 import os
 import torch
-from models import (
-    TimeStar,
-    TimeStar2,
-    TimeStar3,
-    TimeStar4,
-    TimeStar5,
-    TimeStar6,
-    TimeStar7,
-    TimeStar8,
-    Sundial,
-    TimeXer,
-)
+from models import TimeStar
 
 
 class Exp_Basic(object):
     def __init__(self, args):
         self.args = args
-        self.model_dict = {
-            "TimeStar": TimeStar,
-            "TimeStar2": TimeStar2,
-            "TimeStar3": TimeStar3,
-            "TimeStar4": TimeStar4,
-            "TimeStar5": TimeStar5,
-            "TimeStar6": TimeStar6,
-            "TimeStar7": TimeStar7,
-            "TimeStar8": TimeStar8,
-            "Sundial": Sundial,
-            "TimeXer": TimeXer,
-        }
+        self.model_dict = {"TimeStar": TimeStar}
         if args.model == "Mamba":
             print("Please make sure you have successfully installed mamba_ssm")
             from models import Mamba
