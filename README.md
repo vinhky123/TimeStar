@@ -14,6 +14,7 @@ The model architecture's overview is shown in this figure:
 ![Time Star Model Architecture](img/Model%20Architecture.svg)
 
 The models' encoder is a combination of multihead self attention and STAR module. Which helps capturing more information from dataset while keep the model lightweight:
+
 ![Time Star Encoder](img/Model%20encoder.svg)
 
 ## 📈 Performance
