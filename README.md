@@ -1,4 +1,4 @@
-# TimeStar: Time Series Forecasting with Time-based Attention and Refinement
+# TimeStar: Efficient Long-Term Forecasting with Dual Attention and Lightweight Refinement for Multivariate Time Series
 
 TimeStar is an innovative time series forecasting model that I introduce for my graduation thesis. This project represents a significant advancement in time series prediction, offering both high accuracy and interpretability.
 
